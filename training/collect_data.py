@@ -10,10 +10,18 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_ROOT = SCRIPT_DIR / "data"
 
 SIGNS = [
-    "sorry",
-    "stop",
-    "love",
-    "who",
+    "what",
+    "where",
+    "how",
+    "name",
+    "friend",
+    "eat",
+    "drink",
+    "water",
+    "home",
+    "work",
+    "learn",
+    "more",
 ]
 
 SEQUENCE_LENGTH = 5

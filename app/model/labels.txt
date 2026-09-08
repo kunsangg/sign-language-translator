@@ -1,8 +1,12 @@
 bad
 good
 hello
+help
 love
+no
 please
 sorry
 stop
+thanks
 who
+yes
