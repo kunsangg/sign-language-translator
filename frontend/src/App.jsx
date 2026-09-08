@@ -5,17 +5,14 @@ import Sidebar from './components/Sidebar.jsx'
 function getApiBase() {
   const v = import.meta.env.VITE_API_URL
   if (v && String(v).length) return String(v).replace(/\/$/, '')
-  return import.meta.env.DEV ? '/api' : 'http://localhost:8000'
+  return import.meta.env.DEV ? '/api' : ''
 }
 
 function getWsUrl() {
   const v = import.meta.env.VITE_WS_URL
   if (v && String(v).length) return String(v)
-  if (import.meta.env.DEV) {
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${proto}//${window.location.host}/ws`
-  }
-  return 'ws://localhost:8000/ws'
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${proto}//${window.location.host}/ws`
 }
 
 function dataUrlToUint8(dataUrl) {
@@ -88,6 +85,7 @@ export default function App() {
   const [history, setHistory] = useState([])
   const [landmarksDetected, setLandmarksDetected] = useState(false)
   const [handDetected, setHandDetected] = useState(false)
+  const [landmarks, setLandmarks] = useState(null)
   const [fps, setFps] = useState(0)
   const [mode, setMode] = useState('words')
   const [labelsList, setLabelsList] = useState([])
@@ -187,6 +185,11 @@ export default function App() {
         setCurrentConf(rawC)
         setLandmarksDetected(!!data.landmarks_detected)
         setHandDetected(!!data.hand_detected)
+        setLandmarks({
+          left_hand: data.left_hand,
+          right_hand: data.right_hand,
+          pose: data.pose
+        })
 
         if (data.word != null && data.word !== '') {
           const w = data.word
@@ -328,6 +331,7 @@ export default function App() {
           flashSmoothed={flashSmoothed}
           handDetected={handDetected}
           isConnected={isConnected}
+          landmarks={landmarks}
         />
         <Sidebar
           mode={mode}

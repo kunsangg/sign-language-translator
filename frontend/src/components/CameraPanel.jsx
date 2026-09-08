@@ -1,5 +1,19 @@
+import { useEffect, useRef } from 'react'
 import Webcam from 'react-webcam'
 import ConfidenceBar from './ConfidenceBar.jsx'
+
+const HAND_CONNECTIONS = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [5, 9], [9, 10], [10, 11], [11, 12],
+  [9, 13], [13, 14], [14, 15], [15, 16],
+  [13, 17], [0, 17], [17, 18], [18, 19], [19, 20]
+]
+
+const POSE_CONNECTIONS = [
+  [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+  [11, 23], [12, 24], [23, 24]
+]
 
 export default function CameraPanel({
   webcamRef,
@@ -9,10 +23,54 @@ export default function CameraPanel({
   flashSmoothed,
   handDetected,
   isConnected,
+  landmarks,
 }) {
+  const canvasRef = useRef(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    const width = canvas.width
+    const height = canvas.height
+
+    ctx.clearRect(0, 0, width, height)
+
+    if (landmarks && isCapturing) {
+      const draw = (pts, conns, color) => {
+        if (!pts) return
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2
+        ctx.fillStyle = color
+
+        if (conns) {
+          for (const [start, end] of conns) {
+            const p1 = pts[start]
+            const p2 = pts[end]
+            if (p1 && p2) {
+              ctx.beginPath()
+              ctx.moveTo(p1.x * width, p1.y * height)
+              ctx.lineTo(p2.x * width, p2.y * height)
+              ctx.stroke()
+            }
+          }
+        }
+        for (const point of pts) {
+          ctx.beginPath()
+          ctx.arc(point.x * width, point.y * height, 3, 0, 2 * Math.PI)
+          ctx.fill()
+        }
+      }
+
+      draw(landmarks.pose, POSE_CONNECTIONS, 'rgba(255, 255, 255, 0.5)')
+      draw(landmarks.left_hand, HAND_CONNECTIONS, 'rgba(0, 255, 0, 0.8)')
+      draw(landmarks.right_hand, HAND_CONNECTIONS, 'rgba(255, 165, 0, 0.8)')
+    }
+  }, [landmarks, isCapturing])
+
   return (
     <section className="camera-panel">
-      <div className="camera-panel__frame">
+      <div className="camera-panel__frame" style={{ position: 'relative' }}>
         {!isCapturing ? (
           <div className="camera-panel__placeholder">
             <span className="camera-panel__placeholder-icon" aria-hidden>
@@ -38,6 +96,23 @@ export default function CameraPanel({
           width="100%"
           height="100%"
           className="camera-panel__video"
+        />
+        {/* We use intrinsic resolution 640x480 to match typical webcam, objectFit cover handles scaling */}
+        <canvas
+          ref={canvasRef}
+          width={640}
+          height={480}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transform: 'scaleX(-1)', /* mirror it to match the webcam */
+            pointerEvents: 'none',
+            display: isCapturing ? 'block' : 'none'
+          }}
         />
         {isCapturing ? (
           <>

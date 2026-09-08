@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 from dataset_loader import load_dataset
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-MODEL_PATH = SCRIPT_DIR.parent / "backend" / "model" / "model.h5"
+MODEL_PATH = SCRIPT_DIR.parent / "app" / "model" / "model.h5"
 CONFUSION_OUT = SCRIPT_DIR / "confusion_matrix.png"
 
 

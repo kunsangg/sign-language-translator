@@ -6,10 +6,12 @@ import numpy as np
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-from inference import InferenceEngine
-from mediapipe_utils import extract_keypoints, get_mediapipe_model
-from smoother import PredictionSmoother
+from app.inference import InferenceEngine
+from app.mediapipe_utils import extract_keypoints, get_mediapipe_model
+from app.smoother import PredictionSmoother
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,30 +33,9 @@ MODEL_PATH = BACKEND_DIR / "model" / "model.h5"
 
 def _load_labels_list():
     default = [
-        "hello",
-        "thanks",
-        "yes",
-        "no",
-        "please",
-        "sorry",
-        "help",
-        "good",
-        "bad",
-        "more",
-        "stop",
-        "love",
-        "what",
-        "where",
-        "who",
-        "how",
-        "name",
-        "friend",
-        "eat",
-        "drink",
-        "water",
-        "home",
-        "work",
-        "learn",
+        "hello", "thanks", "yes", "no", "please", "sorry", "help", "good",
+        "bad", "more", "stop", "love", "what", "where", "who", "how",
+        "name", "friend", "eat", "drink", "water", "home", "work", "learn",
     ]
     if LABELS_PATH.is_file():
         with open(LABELS_PATH, "r", encoding="utf-8") as f:
@@ -136,6 +117,10 @@ async def websocket_endpoint(websocket: WebSocket):
             else:
                 smoother.update(None, 0.0)
 
+            def format_landmarks(lm_list):
+                if not lm_list: return None
+                return [{"x": p.x, "y": p.y} for p in lm_list.landmark]
+
             await websocket.send_json(
                 {
                     "word": smoothed_word,
@@ -144,6 +129,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     "raw_confidence": raw_confidence,
                     "landmarks_detected": landmarks_detected,
                     "hand_detected": hand_detected,
+                    "left_hand": format_landmarks(results.left_hand_landmarks),
+                    "right_hand": format_landmarks(results.right_hand_landmarks),
+                    "pose": format_landmarks(results.pose_landmarks),
                 }
             )
     except WebSocketDisconnect:
@@ -153,6 +141,20 @@ async def websocket_endpoint(websocket: WebSocket):
         inference.reset()
         smoother.reset()
 
+frontend_dist = BACKEND_DIR.parent / "frontend" / "dist"
+if frontend_dist.is_dir():
+    assets_dir = frontend_dist / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if full_path == "" or full_path == "/":
+            return FileResponse(frontend_dist / "index.html")
+        requested_file = frontend_dist / full_path
+        if requested_file.is_file():
+            return FileResponse(requested_file)
+        return FileResponse(frontend_dist / "index.html")
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)

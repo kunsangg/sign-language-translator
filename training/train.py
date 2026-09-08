@@ -12,7 +12,7 @@ from tensorflow.keras.optimizers import Adam
 from dataset_loader import load_dataset
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-BACKEND_MODEL_DIR = SCRIPT_DIR.parent / "backend" / "model"
+BACKEND_MODEL_DIR = SCRIPT_DIR.parent / "app" / "model"
 MODEL_OUT = BACKEND_MODEL_DIR / "model.h5"
 LABELS_OUT = BACKEND_MODEL_DIR / "labels.txt"
 CURVES_OUT = SCRIPT_DIR / "training_curves.png"
