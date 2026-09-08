@@ -76,6 +76,9 @@ class InferenceEngine:
                 self._model_path,
             )
 
+        self.mock_frame_count = 0
+        self.mock_word_idx = 0
+
     def add_frame(self, keypoints: np.ndarray) -> None:
         self.sequence.append(np.asarray(keypoints, dtype=np.float32).reshape(-1))
         if len(self.sequence) > self.sequence_length:
@@ -90,13 +93,16 @@ class InferenceEngine:
         )
 
         if self.model is None:
+            if self.mock_frame_count % 60 == 0:
+                self.mock_word_idx = random.randrange(len(self.labels))
+            self.mock_frame_count += 1
+            
+            word = self.labels[self.mock_word_idx]
+            confidence = 0.95
             n = len(self.labels)
-            idx = random.randrange(n)
-            word = self.labels[idx]
-            confidence = random.uniform(0.6, 0.99)
             rest = (1.0 - confidence) / max(n - 1, 1) if n > 1 else 0.0
             all_scores = [rest] * n
-            all_scores[idx] = float(confidence)
+            all_scores[self.mock_word_idx] = float(confidence)
             return {
                 "word": word,
                 "confidence": float(confidence),
