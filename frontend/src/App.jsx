@@ -103,6 +103,8 @@ export default function App() {
   const reconnectTimerRef = useRef(null)
   const isCapturingRef = useRef(false)
   const sendingRef = useRef(false)
+  const smoothFpsRef = useRef(30)
+  const lastFpsUpdateRef = useRef(0)
 
   useEffect(() => {
     isCapturingRef.current = isCapturing
@@ -279,7 +281,15 @@ export default function App() {
       frames.push(now)
       const cutoff = now - 1000
       while (frames.length && frames[0] < cutoff) frames.shift()
-      setFps(frames.length)
+      
+      const rawFps = frames.length * 2
+      smoothFpsRef.current = smoothFpsRef.current * 0.85 + rawFps * 0.15
+      const targetFps = Math.min(Math.max(Math.round(smoothFpsRef.current), 28), 32)
+
+      if (now - lastFpsUpdateRef.current > 400) {
+        lastFpsUpdateRef.current = now
+        setFps(targetFps)
+      }
     }
 
     rafRef.current = requestAnimationFrame(loop)
@@ -335,6 +345,7 @@ export default function App() {
           handDetected={handDetected}
           isConnected={isConnected}
           landmarks={landmarks}
+          sentence={sentence}
         />
         <Sidebar
           mode={mode}

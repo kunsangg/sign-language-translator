@@ -34,8 +34,9 @@ def load_dataset(
         sign_name = sign_dir.name
         for npy_path in sorted(sign_dir.glob("*.npy")):
             seq = np.load(npy_path)
-            if seq.shape != (30, 258):
-                seq = seq.reshape(30, 258)
+            if seq.shape[0] != 5:
+                indices = np.linspace(0, seq.shape[0] - 1, 5, dtype=int)
+                seq = seq[indices]
             X_list.append(seq)
             y_list.append(sign_name)
 
@@ -48,7 +49,8 @@ def load_dataset(
     encoder = LabelEncoder()
     y_encoded = encoder.fit_transform(y)
 
-    strat = y_encoded if len(np.unique(y_encoded)) > 1 else None
+    min_class_count = np.min(np.bincount(y_encoded)) if len(y_encoded) > 0 else 0
+    strat = y_encoded if (len(np.unique(y_encoded)) > 1 and min_class_count >= 2) else None
 
     X_train, X_temp, y_train, y_temp = train_test_split(
         X,
@@ -57,7 +59,8 @@ def load_dataset(
         random_state=42,
         stratify=strat,
     )
-    strat_temp = y_temp if len(np.unique(y_temp)) > 1 else None
+    min_temp_count = np.min(np.bincount(y_temp)) if len(y_temp) > 0 else 0
+    strat_temp = y_temp if (len(np.unique(y_temp)) > 1 and min_temp_count >= 2) else None
     X_val, X_test, y_val, y_test = train_test_split(
         X_temp,
         y_temp,

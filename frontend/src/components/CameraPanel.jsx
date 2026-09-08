@@ -24,6 +24,7 @@ export default function CameraPanel({
   handDetected,
   isConnected,
   landmarks,
+  sentence = [],
 }) {
   const canvasRef = useRef(null)
 
@@ -132,14 +133,39 @@ export default function CameraPanel({
             >
               {handDetected ? 'HAND DETECTED' : 'NO HAND'}
             </div>
+
+            {/* Movie Subtitles & Live Word Popup Overlay */}
+            <div className="movie-subtitles">
+              {currentWord ? (
+                <div className={`movie-subtitles__popup ${flashSmoothed ? 'movie-subtitles__popup--flash' : ''}`}>
+                  <span className="movie-subtitles__popup-word">{currentWord}</span>
+                </div>
+              ) : null}
+              {sentence.length === 0 && !currentWord ? (
+                <span className="movie-subtitles__placeholder">
+                  [Subtitles will appear here as you sign]
+                </span>
+              ) : (
+                <p className="movie-subtitles__text">
+                  {sentence.map((w, idx) => (
+                    <span key={`${w}-${idx}`} className="movie-subtitles__word">
+                      {w}{' '}
+                    </span>
+                  ))}
+                  {currentWord && sentence[sentence.length - 1] !== currentWord ? (
+                    <span className="movie-subtitles__active">{currentWord}</span>
+                  ) : null}
+                </p>
+              )}
+            </div>
           </>
         ) : null}
       </div>
       <div className="camera-panel__caption">
-        <div className="camera-panel__caption-label">Live translation</div>
+        <div className="camera-panel__caption-label">Live sentence translation</div>
         <div className={`camera-panel__word-row ${flashSmoothed ? 'camera-panel__word-row--flash' : ''}`}>
           <span className="camera-panel__word">
-            {currentWord || '—'}
+            {sentence.length > 0 ? sentence.join(' ') + (currentWord && sentence[sentence.length - 1] !== currentWord ? ' ' + currentWord : '') : (currentWord || '—')}
             <span className="camera-panel__cursor" aria-hidden>
               |
             </span>

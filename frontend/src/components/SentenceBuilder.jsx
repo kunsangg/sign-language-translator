@@ -16,14 +16,13 @@ export default function SentenceBuilder({ sentence, onClear }) {
             Your translated sentence will appear here
           </p>
         ) : (
-          <p className="sentence-builder__words">
+          <div className="sentence-builder__words">
             {sentence.map((w, i) => (
               <span key={`${w}-${i}`} className="sentence-builder__word">
                 {w}
-                {i < sentence.length - 1 ? ' ' : ''}
               </span>
             ))}
-          </p>
+          </div>
         )}
         <span className="sentence-builder__count">{charCount} chars</span>
       </div>

@@ -60,7 +60,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     inference = InferenceEngine(
         model_path=str(BACKEND_DIR / "model" / "model.h5"),
-        sequence_length=30,
+        sequence_length=5,
     )
     smoother = PredictionSmoother(
         threshold=0.50,
@@ -68,6 +68,7 @@ async def websocket_endpoint(websocket: WebSocket):
         cooldown_frames=6,
     )
     holistic = get_mediapipe_model()
+    missed_hand_frames = 0
 
     try:
         while True:
@@ -107,9 +108,12 @@ async def websocket_endpoint(websocket: WebSocket):
             smoother.tick()
 
             if not hand_detected:
-                inference.reset()
-                smoother.update(None, 0.0)
+                missed_hand_frames += 1
+                if missed_hand_frames > 6:
+                    inference.reset()
+                    smoother.update(None, 0.0)
             else:
+                missed_hand_frames = 0
                 inference.add_frame(keypoints)
                 pred = inference.predict()
                 if pred is not None:

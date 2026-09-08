@@ -4,3 +4,5 @@ hello
 love
 please
 sorry
+stop
+who

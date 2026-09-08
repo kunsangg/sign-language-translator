@@ -40,7 +40,7 @@ class InferenceEngine:
     def __init__(
         self,
         model_path: str = "model/model.h5",
-        sequence_length: int = 30,
+        sequence_length: int = 5,
     ):
         self.sequence_length = sequence_length
         self.sequence: List[np.ndarray] = []

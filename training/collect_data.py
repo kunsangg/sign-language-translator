@@ -16,8 +16,8 @@ SIGNS = [
     "who",
 ]
 
-SEQUENCE_LENGTH = 30
-NUM_SEQUENCES = 20
+SEQUENCE_LENGTH = 5
+NUM_SEQUENCES = 5
 COUNTDOWN_SEC = 1
 
 
@@ -39,11 +39,14 @@ def extract_keypoints(results) -> np.ndarray:
         lm = results.left_hand_landmarks.landmark
         has_left = True
         wx, wy, wz = lm[0].x, lm[0].y, lm[0].z
+        mx, my, mz = lm[9].x, lm[9].y, lm[9].z
+        dist = np.sqrt((mx - wx)**2 + (my - wy)**2 + (mz - wz)**2)
+        scale = float(dist) if dist > 0.01 else 1.0
         for i, p in enumerate(lm):
             base = i * 3
-            left_hand_flat[base] = p.x - wx
-            left_hand_flat[base + 1] = p.y - wy
-            left_hand_flat[base + 2] = p.z - wz
+            left_hand_flat[base] = (p.x - wx) / scale
+            left_hand_flat[base + 1] = (p.y - wy) / scale
+            left_hand_flat[base + 2] = (p.z - wz) / scale
 
     right_hand_flat = np.zeros(63, dtype=np.float32)
     has_right = False
@@ -51,11 +54,14 @@ def extract_keypoints(results) -> np.ndarray:
         lm = results.right_hand_landmarks.landmark
         has_right = True
         wx, wy, wz = lm[0].x, lm[0].y, lm[0].z
+        mx, my, mz = lm[9].x, lm[9].y, lm[9].z
+        dist = np.sqrt((mx - wx)**2 + (my - wy)**2 + (mz - wz)**2)
+        scale = float(dist) if dist > 0.01 else 1.0
         for i, p in enumerate(lm):
             base = i * 3
-            right_hand_flat[base] = p.x - wx
-            right_hand_flat[base + 1] = p.y - wy
-            right_hand_flat[base + 2] = p.z - wz
+            right_hand_flat[base] = (p.x - wx) / scale
+            right_hand_flat[base + 1] = (p.y - wy) / scale
+            right_hand_flat[base + 2] = (p.z - wz) / scale
 
     if has_left and not has_right:
         right_hand_flat = left_hand_flat.copy()

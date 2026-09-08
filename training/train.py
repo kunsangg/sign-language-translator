@@ -64,9 +64,10 @@ def train_with_tensorflow(X_train, X_val, y_train, y_val, num_classes, label_nam
     y_train_oh = tf.keras.utils.to_categorical(y_train_aug, num_classes)
     y_val_oh = tf.keras.utils.to_categorical(y_val, num_classes)
 
+    seq_len = X_train.shape[1]
     model = Sequential(
         [
-            LSTM(128, return_sequences=True, input_shape=(30, 258)),
+            LSTM(128, return_sequences=True, input_shape=(seq_len, 258)),
             BatchNormalization(),
             Dropout(0.3),
             LSTM(128, return_sequences=True),
