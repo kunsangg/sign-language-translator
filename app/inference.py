@@ -61,20 +61,26 @@ class InferenceEngine:
                 self.labels = loaded
 
         self.model = None
+        self.model_type = "tensorflow"
         if self._model_path.is_file():
             try:
                 import tensorflow as tf
 
                 self.model = tf.keras.models.load_model(str(self._model_path))
-                logger.info("Loaded model from %s", self._model_path)
+                logger.info("Loaded TensorFlow model from %s", self._model_path)
             except Exception as e:
-                logger.warning("Could not load model from %s: %s", self._model_path, e)
+                logger.warning("Could not load TensorFlow model from %s: %s", self._model_path, e)
                 self.model = None
-        else:
-            logger.warning(
-                "Model not found at %s — using mock predictions (demo mode)",
-                self._model_path,
-            )
+
+        pkl_path = self._model_path.with_suffix(".pkl")
+        if self.model is None and pkl_path.is_file():
+            try:
+                import joblib
+                self.model = joblib.load(pkl_path)
+                self.model_type = "sklearn"
+                logger.info("Loaded scikit-learn model from %s", pkl_path)
+            except Exception as e:
+                logger.warning("Could not load scikit-learn model from %s: %s", pkl_path, e)
 
         self.mock_frame_count = 0
         self.mock_word_idx = 0
@@ -85,12 +91,16 @@ class InferenceEngine:
             self.sequence = self.sequence[-self.sequence_length :]
 
     def predict(self) -> Optional[Dict[str, Any]]:
-        if len(self.sequence) < self.sequence_length:
+        if len(self.sequence) < 5:
             return None
 
-        batch = np.expand_dims(
-            np.stack(self.sequence[-self.sequence_length :], axis=0), axis=0
-        )
+        if len(self.sequence) < self.sequence_length:
+            pad_count = self.sequence_length - len(self.sequence)
+            seq_data = [self.sequence[0]] * pad_count + self.sequence
+        else:
+            seq_data = self.sequence[-self.sequence_length :]
+
+        batch = np.expand_dims(np.stack(seq_data, axis=0), axis=0)
 
         if self.model is None:
             if self.mock_frame_count % 60 == 0:
@@ -109,8 +119,19 @@ class InferenceEngine:
                 "all_scores": all_scores,
             }
 
-        preds = self.model.predict(batch, verbose=0)
-        probs = np.asarray(preds[0], dtype=np.float64).reshape(-1)
+        if self.model_type == "sklearn":
+            flat_input = batch.reshape(1, -1)
+            if hasattr(self.model, "predict_proba"):
+                probs = self.model.predict_proba(flat_input)[0]
+            else:
+                pred_one = self.model.predict(flat_input)[0]
+                probs = np.zeros(len(self.labels))
+                if pred_one < len(probs):
+                    probs[pred_one] = 1.0
+        else:
+            preds = self.model.predict(batch, verbose=0)
+            probs = np.asarray(preds[0], dtype=np.float64).reshape(-1)
+
         if np.any(probs < 0) or abs(np.sum(probs) - 1.0) > 0.01:
             exp = np.exp(probs - np.max(probs))
             probs = exp / np.sum(exp)
@@ -123,6 +144,7 @@ class InferenceEngine:
             "confidence": confidence,
             "all_scores": all_scores,
         }
+
 
     def reset(self) -> None:
         self.sequence = []

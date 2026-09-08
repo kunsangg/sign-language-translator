@@ -10,65 +10,57 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_ROOT = SCRIPT_DIR / "data"
 
 SIGNS = [
-    "hello",
-    "thanks",
-    "yes",
-    "no",
-    "please",
     "sorry",
-    "help",
-    "good",
-    "bad",
-    "more",
     "stop",
     "love",
-    "what",
-    "where",
     "who",
-    "how",
-    "name",
-    "friend",
-    "eat",
-    "drink",
-    "water",
-    "home",
-    "work",
-    "learn",
 ]
 
 SEQUENCE_LENGTH = 30
-NUM_SEQUENCES = 40
-COUNTDOWN_SEC = 2
+NUM_SEQUENCES = 20
+COUNTDOWN_SEC = 1
 
 
 def extract_keypoints(results) -> np.ndarray:
     pose_flat = np.zeros(132, dtype=np.float32)
-    if results.pose_landmarks:
+    if getattr(results, "pose_landmarks", None):
         lm = results.pose_landmarks.landmark
+        ref_x, ref_y, ref_z = lm[0].x, lm[0].y, lm[0].z
         for i, p in enumerate(lm):
             base = i * 4
-            pose_flat[base] = p.x
-            pose_flat[base + 1] = p.y
-            pose_flat[base + 2] = p.z
-            pose_flat[base + 3] = p.visibility
+            pose_flat[base] = p.x - ref_x
+            pose_flat[base + 1] = p.y - ref_y
+            pose_flat[base + 2] = p.z - ref_z
+            pose_flat[base + 3] = getattr(p, "visibility", 1.0)
 
     left_hand_flat = np.zeros(63, dtype=np.float32)
-    if results.left_hand_landmarks:
+    has_left = False
+    if getattr(results, "left_hand_landmarks", None):
         lm = results.left_hand_landmarks.landmark
+        has_left = True
+        wx, wy, wz = lm[0].x, lm[0].y, lm[0].z
         for i, p in enumerate(lm):
             base = i * 3
-            left_hand_flat[base] = p.x
-            left_hand_flat[base + 1] = p.y
-            left_hand_flat[base + 2] = p.z
+            left_hand_flat[base] = p.x - wx
+            left_hand_flat[base + 1] = p.y - wy
+            left_hand_flat[base + 2] = p.z - wz
 
     right_hand_flat = np.zeros(63, dtype=np.float32)
-    if results.right_hand_landmarks:
+    has_right = False
+    if getattr(results, "right_hand_landmarks", None):
         lm = results.right_hand_landmarks.landmark
+        has_right = True
+        wx, wy, wz = lm[0].x, lm[0].y, lm[0].z
         for i, p in enumerate(lm):
             base = i * 3
-            right_hand_flat[base] = p.x
-            right_hand_flat[base + 1] = p.y
-            right_hand_flat[base + 2] = p.z
+            right_hand_flat[base] = p.x - wx
+            right_hand_flat[base + 1] = p.y - wy
+            right_hand_flat[base + 2] = p.z - wz
+
+    if has_left and not has_right:
+        right_hand_flat = left_hand_flat.copy()
+    elif has_right and not has_left:
+        left_hand_flat = right_hand_flat.copy()
 
     return np.concatenate([pose_flat, left_hand_flat, right_hand_flat])
 

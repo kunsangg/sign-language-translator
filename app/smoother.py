@@ -4,9 +4,9 @@ from typing import Optional
 class PredictionSmoother:
     def __init__(
         self,
-        threshold: float = 0.85,
-        min_frames: int = 8,
-        cooldown_frames: int = 15,
+        threshold: float = 0.50,
+        min_frames: int = 3,
+        cooldown_frames: int = 6,
     ):
         self.threshold = threshold
         self.min_frames = min_frames
@@ -57,10 +57,14 @@ class PredictionSmoother:
             and self._consecutive_word is not None
         ):
             emitted = self._consecutive_word
+            if emitted == self._last_emitted:
+                # Require resetting hand before repeating the exact same word
+                return None
             self._last_emitted = emitted
             self._cooldown_remaining = self.cooldown_frames
             self._consecutive_word = None
             self._consecutive_count = 0
             return emitted
+
 
         return None

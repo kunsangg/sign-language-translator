@@ -102,6 +102,7 @@ export default function App() {
   const lastWordAddedRef = useRef(null)
   const reconnectTimerRef = useRef(null)
   const isCapturingRef = useRef(false)
+  const sendingRef = useRef(false)
 
   useEffect(() => {
     isCapturingRef.current = isCapturing
@@ -177,6 +178,7 @@ export default function App() {
     }
 
     ws.onmessage = (ev) => {
+      sendingRef.current = false
       try {
         const data = JSON.parse(ev.data)
         const rawW = data.raw_word || ''
@@ -263,13 +265,14 @@ export default function App() {
       if (!isCapturingRef.current || !webcamRef.current || !ws || ws.readyState !== WebSocket.OPEN) {
         return
       }
-      if (now - lastSentRef.current < 50) return
+      if (sendingRef.current || now - lastSentRef.current < 66) return
       lastSentRef.current = now
 
       const shot = webcamRef.current.getScreenshot()
       if (!shot) return
 
       const buf = dataUrlToUint8(shot)
+      sendingRef.current = true
       ws.send(buf)
 
       const frames = fpsFramesRef.current

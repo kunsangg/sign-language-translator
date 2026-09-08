@@ -13,7 +13,7 @@ if not os.path.exists('pose_landmarker.task'):
     print("Downloading pose model...")
     urllib.request.urlretrieve("https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task", "pose_landmarker.task")
 
-base_options_hand = python.BaseOptions(model_asset_path='hand_landmarker.task')
+base_options_hand = python.BaseOptions(model_asset_path='hand_landmarker.task', delegate=python.BaseOptions.Delegate.CPU)
 options_hand = vision.HandLandmarkerOptions(base_options=base_options_hand, num_hands=2)
 hand_landmarker = vision.HandLandmarker.create_from_options(options_hand)
 

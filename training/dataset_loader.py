@@ -48,20 +48,24 @@ def load_dataset(
     encoder = LabelEncoder()
     y_encoded = encoder.fit_transform(y)
 
+    strat = y_encoded if len(np.unique(y_encoded)) > 1 else None
+
     X_train, X_temp, y_train, y_temp = train_test_split(
         X,
         y_encoded,
         test_size=0.3,
         random_state=42,
-        stratify=y_encoded,
+        stratify=strat,
     )
+    strat_temp = y_temp if len(np.unique(y_temp)) > 1 else None
     X_val, X_test, y_val, y_test = train_test_split(
         X_temp,
         y_temp,
         test_size=0.5,
         random_state=42,
-        stratify=y_temp,
+        stratify=strat_temp,
     )
+
 
     label_names = np.array(encoder.classes_)
     return (

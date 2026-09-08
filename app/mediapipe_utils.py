@@ -1,9 +1,21 @@
 import numpy as np
 import os
 import urllib.request
+import ssl
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+
+class MockHolistic:
+    def process(self, image):
+        class MockResults:
+            pose_landmarks = None
+            left_hand_landmarks = None
+            right_hand_landmarks = None
+        return MockResults()
+
+    def close(self):
+        pass
 
 class TasksHolistic:
     def __init__(self):
@@ -11,10 +23,14 @@ class TasksHolistic:
         hand_model_path = os.path.join(backend_dir, 'hand_landmarker.task')
         pose_model_path = os.path.join(backend_dir, 'pose_landmarker.task')
 
+        ssl_ctx = ssl._create_unverified_context()
+
         if not os.path.exists(hand_model_path):
-            urllib.request.urlretrieve("https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task", hand_model_path)
+            with urllib.request.urlopen("https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task", context=ssl_ctx) as resp, open(hand_model_path, 'wb') as out:
+                out.write(resp.read())
         if not os.path.exists(pose_model_path):
-            urllib.request.urlretrieve("https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task", pose_model_path)
+            with urllib.request.urlopen("https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task", context=ssl_ctx) as resp, open(pose_model_path, 'wb') as out:
+                out.write(resp.read())
 
         base_options_hand = python.BaseOptions(model_asset_path=hand_model_path)
         options_hand = vision.HandLandmarkerOptions(base_options=base_options_hand, num_hands=2)
@@ -60,38 +76,67 @@ class TasksHolistic:
 
 def extract_keypoints(results) -> np.ndarray:
     """
-    Extract pose (33A-4), left hand (21A-3), right hand (21A-3) from Holistic results.
-    Returns flat array of shape (258,). Face landmarks are excluded.
+    Extract pose (33x4), left hand (21x3), right hand (21x3) from Holistic results.
+    Normalizes coordinates relative to origins (nose for pose, wrist for hands)
+    and applies hand symmetry fallback for reliable single-hand detection.
     """
     pose_flat = np.zeros(132, dtype=np.float32)
     if getattr(results, "pose_landmarks", None):
         lm = results.pose_landmarks.landmark
+        ref_x, ref_y, ref_z = lm[0].x, lm[0].y, lm[0].z
         for i, p in enumerate(lm):
             base = i * 4
-            pose_flat[base] = p.x
-            pose_flat[base + 1] = p.y
-            pose_flat[base + 2] = p.z
-            pose_flat[base + 3] = getattr(p, "visibility", 1.0) # Tasks API might not have visibility on hands
+            pose_flat[base] = p.x - ref_x
+            pose_flat[base + 1] = p.y - ref_y
+            pose_flat[base + 2] = p.z - ref_z
+            pose_flat[base + 3] = getattr(p, "visibility", 1.0)
 
     left_hand_flat = np.zeros(63, dtype=np.float32)
+    has_left = False
     if getattr(results, "left_hand_landmarks", None):
         lm = results.left_hand_landmarks.landmark
+        has_left = True
+        wx, wy, wz = lm[0].x, lm[0].y, lm[0].z
         for i, p in enumerate(lm):
             base = i * 3
-            left_hand_flat[base] = p.x
-            left_hand_flat[base + 1] = p.y
-            left_hand_flat[base + 2] = p.z
+            left_hand_flat[base] = p.x - wx
+            left_hand_flat[base + 1] = p.y - wy
+            left_hand_flat[base + 2] = p.z - wz
 
     right_hand_flat = np.zeros(63, dtype=np.float32)
+    has_right = False
     if getattr(results, "right_hand_landmarks", None):
         lm = results.right_hand_landmarks.landmark
+        has_right = True
+        wx, wy, wz = lm[0].x, lm[0].y, lm[0].z
         for i, p in enumerate(lm):
             base = i * 3
-            right_hand_flat[base] = p.x
-            right_hand_flat[base + 1] = p.y
-            right_hand_flat[base + 2] = p.z
+            right_hand_flat[base] = p.x - wx
+            right_hand_flat[base + 1] = p.y - wy
+            right_hand_flat[base + 2] = p.z - wz
+
+    if has_left and not has_right:
+        right_hand_flat = left_hand_flat.copy()
+    elif has_right and not has_left:
+        left_hand_flat = right_hand_flat.copy()
 
     return np.concatenate([pose_flat, left_hand_flat, right_hand_flat])
 
 def get_mediapipe_model():
-    return TasksHolistic()
+    try:
+        import mediapipe as mp
+        if hasattr(mp, "solutions") and hasattr(mp.solutions, "holistic"):
+            return mp.solutions.holistic.Holistic(
+                min_detection_confidence=0.5,
+                min_tracking_confidence=0.5,
+            )
+    except Exception as e:
+        print(f"Warning: Could not initialize mp.solutions.holistic ({e}). Trying TasksHolistic.")
+
+    try:
+        return TasksHolistic()
+    except Exception as e:
+        print(f"Warning: Could not initialize TasksHolistic ({e}). Falling back to MockHolistic.")
+        return MockHolistic()
+
+

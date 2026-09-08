@@ -63,9 +63,9 @@ async def websocket_endpoint(websocket: WebSocket):
         sequence_length=30,
     )
     smoother = PredictionSmoother(
-        threshold=0.85,
-        min_frames=8,
-        cooldown_frames=15,
+        threshold=0.50,
+        min_frames=3,
+        cooldown_frames=6,
     )
     holistic = get_mediapipe_model()
 
@@ -98,24 +98,30 @@ async def websocket_endpoint(websocket: WebSocket):
             hand_detected = left_ok or right_ok
 
             keypoints = extract_keypoints(results)
-            inference.add_frame(keypoints)
-
-            pred = inference.predict()
+            
             raw_word = ""
             raw_confidence = 0.0
             smoothed_word = None
             out_confidence = 0.0
 
             smoother.tick()
-            if pred is not None:
-                raw_word = pred["word"]
-                raw_confidence = float(pred["confidence"])
-                emitted = smoother.update(raw_word, raw_confidence)
-                if emitted is not None:
-                    smoothed_word = emitted
-                    out_confidence = raw_confidence
-            else:
+
+            if not hand_detected:
+                inference.reset()
                 smoother.update(None, 0.0)
+            else:
+                inference.add_frame(keypoints)
+                pred = inference.predict()
+                if pred is not None:
+                    raw_word = pred["word"]
+                    raw_confidence = float(pred["confidence"])
+                    emitted = smoother.update(raw_word, raw_confidence)
+                    if emitted is not None:
+                        smoothed_word = emitted
+                        out_confidence = raw_confidence
+                else:
+                    smoother.update(None, 0.0)
+
 
             def format_landmarks(lm_list):
                 if not lm_list: return None
